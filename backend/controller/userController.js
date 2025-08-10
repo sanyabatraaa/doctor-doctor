@@ -3,7 +3,7 @@ import ErrorHandler from "../middlewares/errorMiddleware.js";
 import {User} from "../models/userSchema.js"
 import {generateToken} from "../utils/jwtToken.js";
 import cloudinary from "cloudinary";
-
+import mongoose from "mongoose"; 
 export const patientRegister= catchAsyncErrors(async (req,res,next)=>{
     const {
         firstName,
@@ -57,10 +57,17 @@ export const login=catchAsyncErrors( async(req,res,next)=>{
     // }
     const user=await User.findOne({email}).select("+password");
     if(!user){
+        
+        console.log("Connected DB:", mongoose.connection.name);
+        console.log("Email from req:", email);
+        console.log("Role from req:", role);
+        const user = await User.findOne({ email, role });
+        console.log("User found:", user);
         return next(new ErrorHandler("Invalid password Or Email!",400));
     }
     const isPasswordMatched=await user.comparePassword(password);
     if(!isPasswordMatched){
+        
         return next(new ErrorHandler("Invalid password Or Email!",400));
     }
     if(role!==user.role){

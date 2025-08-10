@@ -142,3 +142,19 @@ export const getMyAppointments = async (req, res) => {
     });
   }
 };
+
+export const getApprovedAppointmentsForDoctor = catchAsyncErrors(async (req, res, next) => {
+  const doctorId = req.user._id; // from isDoctorAuthenticated middleware
+
+  const appointments = await Appointment.find({
+    doctorId: doctorId,
+    status: "Accepted"
+  })
+    .populate("patientId", "firstName lastName email")
+    .sort({ appointment_date: -1 });
+
+  res.status(200).json({
+    success: true,
+    appointments
+  });
+});

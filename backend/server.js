@@ -10,4 +10,4 @@ cloudinary.v2.config({
 app.listen(process.env.PORT,()=>{
     console.log("running");
 })
-bcrypt.hash("12345678", 10).then(console.log);
+// bcrypt.hash("12345678", 10).then(console.log);

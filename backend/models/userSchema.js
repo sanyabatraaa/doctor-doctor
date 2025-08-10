@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 const userSchema= new mongoose.Schema({
   firstName: { type: String, required: true, minLength: 3 },
   lastName: { type: String, required: true, minLength: 3 },
-  email: { type: String, required: true, unique: true, validate: [validator.isEmail, "Invalid email"] },
+  email: { type: String, required: true, validate: [validator.isEmail, "Please Provide a Valid Email!"] },
   phone: { type: String, required: true, minLength: 10, maxLength: 10 },
   nic: { type: String, required: true, minLength: 13, maxLength: 13 },
   dob: { type: Date, required: true },
@@ -14,7 +14,7 @@ const userSchema= new mongoose.Schema({
   role: { type: String, required: true, enum: ["Admin", "Patient", "Doctor"] },
 
   // Doctor-specific
-  doctorDepartment: { type: String, required: true, enum: ["Cardiology", "Neurology", "Orthopedics", "General"] },
+  doctorDepartment: { type: String },
   qualifications: { type: [String] },
   experienceYears: { type: Number },
   clinicAddress: { type: String },
@@ -39,6 +39,18 @@ const userSchema= new mongoose.Schema({
     public_id: String,
     url: String,
   },
+
+
+  //blood donation
+  badges: [String],
+  streakCount: { type: Number, default: 0 },
+  totalDonations: { type: Number, default: 0 },
+  donations: [
+    {
+      date: { type: Date, required: true },
+      center: { type: mongoose.Schema.Types.ObjectId, ref: "donationSchema" }
+    }
+  ]
 }, { timestamps: true })
 
 
