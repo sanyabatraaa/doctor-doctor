@@ -587,3 +587,17 @@ input[type="time"]:before {
 footer .logo-img{
   width: 100%;
 }
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+}

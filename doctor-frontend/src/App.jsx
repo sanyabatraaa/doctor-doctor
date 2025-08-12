@@ -9,7 +9,8 @@ import Sidebar from './components/Sidebar';
 import MyDetails from './components/MyDetails';
 import Login from "./Pages/Login";
 import MyAppointments from "./components/MyAppointments";
-
+import DoctorAppointments from "./components/DoctorAppointments.jsx";
+import CreatePrescriptionForm from "./components/CreatePrescriptionForm.jsx";
 function App() {
   const { isAuthenticated, setIsAuthenticated, doctor, setDoctor} = useContext(Context);
 
@@ -43,13 +44,16 @@ function App() {
           />
           <Route 
             path="/appointment" 
-            element={isAuthenticated ? <MyAppointments /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <MyAppointments /> : <Navigate to="/login"/>}
           />
           <Route path="/login" element={<Login />} />
+          <Route path="/prescriptions" element={isAuthenticated? <DoctorAppointments/> : <Navigate to="/login"/>} />
+          <Route path="/prescription/:appointmentId" element={isAuthenticated? <CreatePrescriptionForm /> : <Navigate to="/login"/>} />
       </Routes>
       <ToastContainer position="top-center" />
     </Router>
   )
 }
+
 
 export default App

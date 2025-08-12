@@ -54,7 +54,7 @@ const MyAppointments = () => {
                     ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
                     : "Unknown"}
                 </td>
-                <td>{new Date(appt.appointment_date).toLocaleString()}</td>
+                <td>{new Date(appt.appointment_date).toLocaleDateString()}</td>
                 <td>{appt.status}</td>
               </tr>
             ))}

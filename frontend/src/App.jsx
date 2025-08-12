@@ -12,6 +12,7 @@ import Footer from "./components/Footer";
 import { useContext, useEffect } from "react";
 import axios from "axios";
 import { Context } from "./main";
+import DonationCentersList from "./Pages/DonationCentersList";
 
 const App = () => {
   const { isAuthenticated, setIsAuthenticated, setUser } = useContext(Context);
@@ -45,6 +46,7 @@ const App = () => {
             element={isAuthenticated ? <Appointment /> : <Navigate to="/login" />}
           />
           <Route path="/about" element={<AboutUs />} />
+          <Route path="/donationCentersList" element={isAuthenticated ? <DonationCentersList /> : <Navigate to="/login" />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
         </Routes>

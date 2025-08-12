@@ -4,7 +4,7 @@ import { RiLogoutBoxFill } from "react-icons/ri";
 import { AiFillMessage } from "react-icons/ai";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { FaUserDoctor } from "react-icons/fa6";
-import { MdAddModerator } from "react-icons/md";
+import { MdAddModerator, MdBloodtype } from "react-icons/md";
 import { IoPersonAddSharp } from "react-icons/io5";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -62,6 +62,10 @@ const Sidebar = () => {
     setShow(!show);
   };
 
+  const gotoAddNewDonationCenter=()=>{
+    navigateTo("/donationCenter")
+    setShow(!show);
+  }
   return (
     <>
       <nav
@@ -75,7 +79,9 @@ const Sidebar = () => {
           <MdAddModerator onClick={gotoAddNewAdmin} />
           <IoPersonAddSharp onClick={gotoAddNewDoctor} />
           <AiFillMessage onClick={gotoMessagesPage} />
+          <MdBloodtype onClick={gotoAddNewDonationCenter} />
           <RiLogoutBoxFill onClick={handleLogout} />
+          
         </div>
       </nav>
       <div

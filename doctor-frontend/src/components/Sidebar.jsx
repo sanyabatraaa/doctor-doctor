@@ -45,19 +45,11 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        <NavLink to="/" className="nav-item">
-          <FaHome style={iconStyle} />
-          {isOpen && <span>Dashboard</span>}
-        </NavLink>
-        <NavLink to="/availability" className="nav-item">
-          <FaClock style={iconStyle} />
-          {isOpen && <span>My Availability</span>}
-        </NavLink>
         <NavLink to="/details" className="nav-item">
           <FaUserMd style={iconStyle} />
           {isOpen && <span>My Details</span>}
         </NavLink>
-        <NavLink to="/appointments" className="nav-item">
+        <NavLink to="/appointment" className="nav-item">
           <FaCalendarCheck style={iconStyle} />
           {isOpen && <span>Appointments</span>}
         </NavLink>
@@ -65,20 +57,12 @@ const Sidebar = () => {
           <FaNotesMedical style={iconStyle} />
           {isOpen && <span>Prescriptions</span>}
         </NavLink>
-        <NavLink to="/messages" className="nav-item">
-          <FaComments style={iconStyle} />
-          {isOpen && <span>Messages</span>}
-        </NavLink>
       </nav>
 
       {/* Footer */}
       <div className="sidebar-footer">
         {isAuthenticated ? (
           <>
-            <NavLink to="/settings" className="nav-item">
-              <FaCog style={iconStyle} />
-              {isOpen && <span>Settings</span>}
-            </NavLink>
             <button onClick={handleLogout} className="nav-item logout">
               <FaSignOutAlt style={{ ...iconStyle, color: "red" }} />
               {isOpen && <span>Logout</span>}

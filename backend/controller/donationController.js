@@ -1,146 +1,218 @@
+import { Donation } from "../models/donationSchema.js";
+import { DonationRequest } from "../models/DonationRequestSchema.js";
 import { User } from "../models/userSchema.js";
-import {Donation} from "../models/donationSchema.js"; // adjust path if different
-import mongoose from "mongoose"; 
+import {catchAsyncErrors} from "../middlewares/catchAsyncErrors.js";
+import ErrorHandler from "../middlewares/errorMiddleware.js"
+import cloudinary from "cloudinary";
 
-// 📌 Register a Blood Donation
-export const registerDonation = async (req, res) => {
+/**
+ * 1️⃣ Admin - Add a donation center
+ */
+export const addDonationCenter = catchAsyncErrors(async (req, res, next) => {
+  const { name, city, address, contactNumber } = req.body;
+
+  if (!name || !city || !address || !contactNumber) {
+    return next(new ErrorHandler("All fields are required", 400));
+  }
+
+  // Check if a center with same name, city, and address already exists
+  const existingCenter = await Donation.findOne({ 
+    name: name.trim(), 
+    city: city.trim(), 
+    address: address.trim() 
+  });
+
+  if (existingCenter) {
+    return next(new ErrorHandler("A donation center with these details already exists", 400));
+  }
+
+  const newCenter = await Donation.create({
+    name: name.trim(),
+    city: city.trim(),
+    address: address.trim(),
+    contactNumber: contactNumber.trim()
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Donation center added successfully",
+    center: newCenter
+  });
+});
+
+
+/**
+ * 2️⃣ Get all donation centers
+ */
+export const getDonationCenters = catchAsyncErrors(async (req, res, next) => {
+  const centers = await Donation.find();
+  res.status(200).json({ success: true, centers });
+});
+
+/**
+ * 3️⃣ User applies as donor
+ */
+export const createDonationRequest = catchAsyncErrors(async (req, res, next) => {
+  const { centerId, bloodGroup } = req.body;
+
+  if (!centerId || !bloodGroup) {
+    return next(new ErrorHandler("Center ID and Blood Group are required", 400));
+  }
+
+  if (!req.files || !req.files.cbcReport) {
+    return next(new ErrorHandler("CBC Report file is required", 400));
+  }
+
+  // Check if user already has a pending or approved request
+  const existingRequest = await DonationRequest.findOne({
+    user: req.user.id,
+    center: centerId,
+    status: { $in: ["Pending", "Approved"] }
+  });
+
+  if (existingRequest) {
+    return next(new ErrorHandler("You already have a pending or approved request for this center", 400));
+  }
+
+  const cbcFile = req.files.cbcReport;
+  const allowedFormats = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+  if (!allowedFormats.includes(cbcFile.mimetype)) {
+    return next(new ErrorHandler("Invalid file format", 400));
+  }
+
+  const cloudinaryResponse = await cloudinary.uploader.upload(cbcFile.tempFilePath, {
+    folder: "cbc_reports"
+  });
+
+  // Update patient details
+  await User.findByIdAndUpdate(req.user.id, {
+    bloodGroup,
+    cbcReport: {
+      public_id: cloudinaryResponse.public_id,
+      url: cloudinaryResponse.secure_url
+    },
+    cbcStatus: "Pending"
+  });
+
+  const donationRequest = await DonationRequest.create({
+    user: req.user.id, // taken from logged-in patient
+    center: centerId,
+    date: new Date(),
+    status: "Pending"
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Donation request submitted successfully. Awaiting admin approval.",
+    donationRequest
+  });
+});
+
+export const getAllDonationRequests = async (req, res) => {
   try {
-    const userId = req.user._id;  
-    const { centerId, date } = req.body;
+    const requests = await DonationRequest.find()
+      .populate({
+        path: "user",
+        select:
+          "firstName lastName email phone nic dob gender bloodGroup cbcReport cbcStatus role",
+      })
+      .populate({
+        path: "center",
+        select: "name city address contactNumber",
+      })
+      .sort({ createdAt: -1 });
 
-    if (!centerId || !date) {
-      return res.status(400).json({ success: false, message: "Missing required fields." });
-    }
-
-    // 1️⃣ Find User & Center
-    const user = await User.findById(userId);
-    const center = await Donation.findById(centerId);
-
-    if (!user) return res.status(404).json({ success: false, message: "User not found." });
-    if (!center) return res.status(404).json({ success: false, message: "Donation center not found." });
-
-    const donationDate = new Date(date);
-    const donationMonth = donationDate.getMonth();
-    const donationYear = donationDate.getFullYear();
-
-    // 2️⃣ Check if user already donated this month
-    const alreadyDonatedThisMonth = user.donations.some(donation => {
-      const d = new Date(donation.date);
-      return d.getMonth() === donationMonth && d.getFullYear() === donationYear;
-    });
-
-    // 3️⃣ Add donation record to user
-    user.donations.push({ date: donationDate, center: centerId });
-    user.totalDonations += 1;
-
-    // 4️⃣ Update streak only if no donation in this month yet
-    if (!alreadyDonatedThisMonth) {
-      user.streakCount += 1;
-    }
-
-    // 5️⃣ Assign badges based on milestones
-    if (user.totalDonations === 1 && !user.badges.includes("First Donation")) {
-      user.badges.push("First Donation");
-    }
-    if (user.totalDonations === 5 && !user.badges.includes("5 Donations")) {
-      user.badges.push("5 Donations");
-    }
-    if (user.totalDonations === 10 && !user.badges.includes("10 Donations")) {
-      user.badges.push("10 Donations");
-    }
-
-    // 6️⃣ Update donation center stats
-    center.totalDonations += 1;
-    if (!center.donors.includes(userId)) {
-      center.donors.push(userId);
-    }
-
-    // 7️⃣ Save changes
-    await user.save();
-    await center.save();
-
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: "Donation registered successfully.",
-      user,
-      center
-    });
-
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const addDonationCenter = async (req, res) => {
-  try {
-    const { name, city, address, contactNumber } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ success: false, message: "Center name is required." });
-    }
-
-    // Create new donation center
-    const newCenter = new Donation({
-      name,
-      city,
-      address,
-      contactNumber,
-      totalDonations: 0,
-      donors: []
-    });
-
-    await newCenter.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Donation center added successfully.",
-      center: newCenter
+      count: requests.length,
+      data: requests,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error fetching donation requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching donation requests",
+    });
   }
 };
 
-// 📌 Get a user's donation history
-export const getDonationHistory = async (req, res) => {
-  try {
-    const userId  = req.user._id;
+/**
+ * 4️⃣ Admin approves/rejects donor
+ */
+export const updateDonationRequestStatus = catchAsyncErrors(async (req, res, next) => {
+  const { requestId } = req.params;
+  const { status } = req.body;
 
-    const user = await User.findById(userId)
-      .populate("donations.center", "name city address contactNumber")
-      .select("firstName lastName totalDonations streakCount badges donations");
+  const donationRequest = await DonationRequest.findById(requestId).populate("user center");
+  if (!donationRequest) return next(new ErrorHandler("Donation request not found", 404));
 
-    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+  donationRequest.status = status;
+  donationRequest.reviewedBy = req.user.id;
+  donationRequest.reviewedAt = new Date();
+  await donationRequest.save();
 
-    res.status(200).json({ success: true, donationHistory: user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  if (status === "Approved") {
+    await User.findByIdAndUpdate(donationRequest.user._id, { cbcStatus: "Approved" });
+    await Donation.findByIdAndUpdate(donationRequest.center._id, {
+      $addToSet: { donors: donationRequest.user._id }
+    });
+  } else {
+    await User.findByIdAndUpdate(donationRequest.user._id, { cbcStatus: "Rejected" });
   }
-};
 
-// 📌 Get all donation centers with stats
-export const getDonationCenters = async (req, res) => {
-  try {
-    const centers = await Donation.find()
-      .populate("donors", "firstName lastName email")
-      .sort({ totalDonations: -1 });
+  res.status(200).json({
+    success: true,
+    message: `Donation request ${status.toLowerCase()} successfully`
+  });
+});
 
-    res.status(200).json({ success: true, centers });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+/**
+ * 5️⃣ Get donors by blood compatibility
+ */
+export const findCompatibleDonors = catchAsyncErrors(async (req, res, next) => {
+  const { requiredBloodGroup } = req.query;
+  if (!requiredBloodGroup) return next(new ErrorHandler("Blood group is required", 400));
 
-// 📌 Get leaderboard of top donors
-export const getTopDonors = async (req, res) => {
-  try {
-    const donors = await User.find({ totalDonations: { $gt: 0 } })
-      .sort({ totalDonations: -1 })
-      .limit(10)
-      .select("firstName lastName totalDonations badges");
+  const compatibility = {
+    "A+": ["A+", "A-", "O+", "O-"],
+    "A-": ["A-", "O-"],
+    "B+": ["B+", "B-", "O+", "O-"],
+    "B-": ["B-", "O-"],
+    "AB+": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+    "AB-": ["A-", "B-", "AB-", "O-"],
+    "O+": ["O+", "O-"],
+    "O-": ["O-"]
+  };
 
-    res.status(200).json({ success: true, donors });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+  const compatibleGroups = compatibility[requiredBloodGroup];
+  if (!compatibleGroups) return next(new ErrorHandler("Invalid blood group", 400));
+
+  const donors = await User.find({
+    bloodGroup: { $in: compatibleGroups },
+    cbcStatus: "Approved"
+  });
+
+  res.status(200).json({ success: true, donors });
+});
+
+/**
+ * 6️⃣ Get top donors leaderboard
+ */
+export const getTopDonors = catchAsyncErrors(async (req, res, next) => {
+  const topDonors = await User.find({ cbcStatus: "Approved" })
+    .sort({ totalDonations: -1 })
+    .limit(10)
+    .select("firstName lastName totalDonations");
+
+  res.status(200).json({ success: true, topDonors });
+});
+
+/**
+ * 7️⃣ Get donation history for a user
+ */
+export const getDonationHistory = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.user.id).populate("donations.center");
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  res.status(200).json({ success: true, donations: user.donations });
+});
